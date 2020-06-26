@@ -24,6 +24,7 @@ def get_usage_aggregated_query(
         outer_query_id_field: str,
         aggregated_field: str
 ) -> QuerySet:
+    # TODO: write docs
     query = initial_query.filter(**{query_id_field: OuterRef(outer_query_id_field)})
     query = query.values(query_id_field)
     query = query.annotate(**{'sum_' + aggregated_field: Coalesce(Sum(aggregated_field), 0)})
@@ -37,6 +38,7 @@ def get_exceeding_subscriptions(
         subscription_id_field: str,
         limit: float
 ) -> QuerySet:
+    # TODO: write docs
     data_usage_subquery = get_usage_aggregated_query(
         DataUsageRecord.objects.all(),
         subscription_id_field,
@@ -65,6 +67,7 @@ def get_usage_metrics(
         from_date: datetime.datetime,
         to_date: datetime.datetime,
 ) -> QuerySet:
+    # TODO: write docs
     initial_query = initial_query.filter(usage_date__gte=from_date, usage_date__lte=to_date)
 
     initial_subquery = initial_query \

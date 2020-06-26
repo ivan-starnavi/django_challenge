@@ -14,9 +14,11 @@ class Migration(migrations.Migration):
             name='AggregatedDataUsageRecord',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('sum_price', models.DecimalField(decimal_places=2, default=0, max_digits=10)),
+                ('price', models.DecimalField(decimal_places=2, default=0, max_digits=10)),
                 ('usage_date', models.DateField()),
-                ('sum_kilobytes_used', models.IntegerField(default=0)),
+                ('kilobytes_used', models.IntegerField(default=0)),
+                ('att_subscription', models.ForeignKey(null=True, on_delete=models.deletion.PROTECT, to='att_subscriptions.ATTSubscription')),
+                ('sprint_subscription', models.ForeignKey(null=True, on_delete=models.deletion.PROTECT, to='sprint_subscriptions.SprintSubscription')),
             ],
             options={
                 'db_table': 'agg_data_usage',
@@ -26,9 +28,11 @@ class Migration(migrations.Migration):
             name='AggregatedVoiceUsageRecord',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('sum_price', models.DecimalField(decimal_places=2, default=0, max_digits=10)),
+                ('price', models.DecimalField(decimal_places=2, default=0, max_digits=10)),
                 ('usage_date', models.DateField()),
-                ('sum_seconds_used', models.IntegerField(default=0)),
+                ('seconds_used', models.IntegerField(default=0)),
+                ('att_subscription', models.ForeignKey(null=True, on_delete=models.deletion.PROTECT, to='att_subscriptions.ATTSubscription')),
+                ('sprint_subscription', models.ForeignKey(null=True, on_delete=models.deletion.PROTECT, to='sprint_subscriptions.SprintSubscription')),
             ],
             options={
                 'db_table': 'agg_voice_usage',

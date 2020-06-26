@@ -1,38 +1,11 @@
+import datetime
+
 from django.db import models
 
 from wt.att_subscriptions.models import ATTSubscription
 from wt.sprint_subscriptions.models import SprintSubscription
 
-
-# ---------------------------
-# Abstracts
-# ---------------------------
-
-class UsageRecord(models.Model):
-    """Abstract model for subscription usage"""
-    att_subscription_id = models.ForeignKey(ATTSubscription, null=True, on_delete=models.PROTECT)
-    sprint_subscription_id = models.ForeignKey(SprintSubscription, null=True, on_delete=models.PROTECT)
-    price = models.DecimalField(decimal_places=2, max_digits=5, default=0)
-    usage_date = models.DateTimeField(null=True)
-
-    USAGE_FIELD = None
-
-    class Meta:
-        abstract = True
-
-
-class AggregatedUsageRecord(models.Model):
-    """Abstract model for aggregated subscription usage by date"""
-    sum_price = models.DecimalField(decimal_places=2, max_digits=10, default=0)
-    usage_date = models.DateField()
-
-    class Meta:
-        abstract = True
-
-
-# ---------------------------
-# Implementations
-# ---------------------------
+from .base_models import UsageRecord, AggregatedUsageRecord, populate
 
 
 class DataUsageRecord(UsageRecord):
@@ -51,15 +24,37 @@ class VoiceUsageRecord(UsageRecord):
 
 class AggregatedDataUsageRecord(AggregatedUsageRecord):
     """Aggregated data usage record for subscriptions by date"""
-    sum_kilobytes_used = models.IntegerField(default=0)
+    kilobytes_used = models.IntegerField(default=0)
+
+    BASE_MODEL = DataUsageRecord
 
     class Meta:
         db_table = 'agg_data_usage'
 
+    @classmethod
+    def populate(
+            cls,
+            date: datetime.date,
+            att_subscription_id: int = None,
+            sprint_subscription_id: int = None
+    ) -> 'AggregatedDataUsageRecord':
+        return populate(AggregatedDataUsageRecord, date, att_subscription_id, sprint_subscription_id)
+
 
 class AggregatedVoiceUsageRecord(AggregatedUsageRecord):
     """Aggregated voice usage record for subscriptions by date"""
-    sum_seconds_used = models.IntegerField(default=0)
+    seconds_used = models.IntegerField(default=0)
+
+    BASE_MODEL = VoiceUsageRecord
 
     class Meta:
         db_table = 'agg_voice_usage'
+
+    @classmethod
+    def populate(
+            cls,
+            date: datetime.date,
+            att_subscription_id: int = None,
+            sprint_subscription_id: int = None
+    ) -> 'AggregatedVoiceUsageRecord':
+        return populate(AggregatedVoiceUsageRecord, date, att_subscription_id, sprint_subscription_id)
