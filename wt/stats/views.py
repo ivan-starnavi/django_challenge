@@ -11,8 +11,8 @@ from .serializers import StatsUsageMetricsRequestSerializer, StatusUsageMetricsR
 
 
 class StatsExceedingView(APIView):
-    def get(self, request):
-        query_serializer = StatsExceedingRequestSerializer(data=request.query_params)
+    def post(self, request):
+        query_serializer = StatsExceedingRequestSerializer(data=request.data)
         query_serializer.is_valid(True)
         limit = query_serializer.validated_data['limit']
 
