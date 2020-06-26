@@ -1,27 +1,29 @@
-from rest_framework.serializers import ModelSerializer, ListSerializer
-
-from wt.att_subscriptions.models import ATTSubscription
+from rest_framework.serializers import Serializer, DecimalField, IntegerField
 
 
-class ExceedingATTSubscriptionSerializer(ModelSerializer):
+class ExceedingDecimalField(DecimalField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('required', True)
+        kwargs.setdefault('decimal_places', 2)
+        kwargs.setdefault('max_digits', 10)
+        kwargs.setdefault('coerce_to_string', True)
+        super().__init__(*args, **kwargs)
+
+    def to_representation(self, value):
+        if value <= 0:
+            return None
+        else:
+            return super().to_representation(value)
+
+
+class StatsExceedingRequestSerializer(Serializer):
+    limit = ExceedingDecimalField()
+
+
+class StatsExceedingResponseSerializer(Serializer):
+    id = IntegerField()
+    data_usage_exceeds = ExceedingDecimalField(source='agg_data_usage_exceeds')
+    voice_usage_exceeds = ExceedingDecimalField(source='agg_voice_usage_exceeds')
+
     class Meta:
-        model = ATTSubscription
-        fields = ['id']
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data['exceeds'] = []
-
-        if instance['agg_data_usage_exceeds'] > 0:
-            data['exceeds'].append({
-                'type': 'data',
-                'over_limit': instance.agg_data_usage_exceeds
-            })
-
-        if instance['agg_voice_usage_exceeds'] > 0:
-            data['exceeds'].append({
-                'type': 'voice',
-                'over_limit': instance.agg_voice_usage_exceeds
-            })
-
-        return data
+        fields = ['id', 'data_usage_exceeds', 'voice_usage_exceeds', 'subscription_type']

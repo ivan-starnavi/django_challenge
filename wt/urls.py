@@ -23,7 +23,7 @@ from wt.att_subscriptions.views import ATTSubscriptionViewSet
 from wt.plans.views import PlanViewSet
 from wt.purchases.views import PurchaseViewSet
 from wt.sprint_subscriptions.views import SprintSubscriptionViewSet
-from wt.stats.views import StatsView
+from wt.stats.views import StatsExceedingView
 
 router = routers.DefaultRouter()
 
@@ -35,5 +35,5 @@ router.register(r'sprint_subscriptions', SprintSubscriptionViewSet)
 urlpatterns = [
     path('admin/', admin.site.urls),
     url(r'^api/', include((router.urls, 'api'), namespace='api')),
-    url(r'^api/stats/exceeded', StatsView.as_view(), name='stats-exceeded')
+    url(r'^api/stats/exceeded', StatsExceedingView.as_view(), name='stats-exceeded')
 ]
