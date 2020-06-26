@@ -15,6 +15,8 @@ class UsageRecord(models.Model):
     price = models.DecimalField(decimal_places=2, max_digits=5, default=0)
     usage_date = models.DateTimeField(null=True)
 
+    USAGE_FIELD = None
+
     class Meta:
         abstract = True
 
@@ -37,10 +39,14 @@ class DataUsageRecord(UsageRecord):
     """Raw data usage record for a subscription"""
     kilobytes_used = models.IntegerField(null=False)
 
+    USAGE_FIELD = 'kilobytes_used'
+
 
 class VoiceUsageRecord(UsageRecord):
     """Raw voice usage record for a subscription"""
     seconds_used = models.IntegerField(null=False)
+
+    USAGE_FIELD = 'seconds_used'
 
 
 class AggregatedDataUsageRecord(AggregatedUsageRecord):
