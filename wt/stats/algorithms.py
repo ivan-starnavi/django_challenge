@@ -70,14 +70,18 @@ def get_usage_metrics(
     # TODO: write docs
     initial_query = initial_query.filter(usage_date__gte=from_date, usage_date__lte=to_date)
 
-    initial_subquery = initial_query \
-        .annotate(id_field=USAGE_ID_FIELD_ANNOTATION, id_value=USAGE_ID_VALUE_ANNOTATION) \
-        .filter(id_field=OuterRef('id_field'))
+    initial_subquery = initial_query.annotate(
+        id_field=USAGE_ID_FIELD_ANNOTATION,
+        id_value=USAGE_ID_VALUE_ANNOTATION
+    )
+    initial_subquery = initial_subquery.filter(id_field=OuterRef('id_field'))
 
-    query = initial_query \
-        .values('att_subscription_id', 'sprint_subscription_id') \
-        .distinct() \
-        .annotate(id_field=USAGE_ID_FIELD_ANNOTATION, id_value=USAGE_ID_VALUE_ANNOTATION)
+    query = initial_query.values('att_subscription_id', 'sprint_subscription_id')
+    query = query.distinct()
+    query = query.annotate(
+        id_field=USAGE_ID_FIELD_ANNOTATION,
+        id_value=USAGE_ID_VALUE_ANNOTATION
+    )
 
     price_aggregated_query = get_usage_aggregated_query(
         initial_subquery, 'id_value', 'id_value', 'price'

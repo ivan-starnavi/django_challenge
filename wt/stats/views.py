@@ -19,13 +19,13 @@ class StatsExceedingView(APIView):
         att_exceeded_subscriptions = get_exceeding_subscriptions(
             ATTSubscription.objects.all(),
             'ATT',
-            'att_subscription_id_id',
+            'att_subscription_id',
             limit
         )
         sprint_exceeded_subscriptions = get_exceeding_subscriptions(
             SprintSubscription.objects.all(),
             'Sprint',
-            'sprint_subscription_id_id',
+            'sprint_subscription_id',
             limit
         )
 
