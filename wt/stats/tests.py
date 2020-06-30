@@ -1,3 +1,19 @@
-from django.test import TestCase
+from wt.tests import BaseAPITestCase
 
-# Create your tests here.
+
+class StatsExceedingTestCase(BaseAPITestCase):
+    # TODO: complete
+    def test_correct(self):
+        pass
+
+    def test_incorrect(self):
+        pass
+
+
+class UsageMetricsTestCase(BaseAPITestCase):
+    # TODO: complete
+    def test_correct(self):
+        pass
+
+    def test_incorrect(self):
+        pass

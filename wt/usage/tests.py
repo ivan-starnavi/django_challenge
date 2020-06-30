@@ -1,3 +1,10 @@
-from django.test import TestCase
+from wt.tests import BaseAPITestCase
 
-# Create your tests here.
+
+class PopulateTestCase(BaseAPITestCase):
+    # TODO: complete
+    def test_correct(self):
+        pass
+
+    def test_incorrect(self):
+        pass
