@@ -24,7 +24,19 @@ def get_usage_aggregated_query(
         outer_query_id_field: str,
         aggregated_field: str
 ) -> QuerySet:
-    # TODO: write docs
+    """This function takes initial queryset on child model of wt.usage.base_models.UsageRecord and using passed field
+        names returns modified initial queryset that aggregates usage over certain subscription (using Coalesce(Sum, 0))
+
+    Args:
+        initial_query (QuerySet): initial queryset on child model of wt.usage.base_models.UsageRecord
+        query_id_field (str): subscription id field name on initial_query
+        outer_query_id_field (str): outer reference subscription id field name (e.g. att_subscription_id)
+        aggregated_field (str): field name on initial_query to aggregate sum
+
+    Returns:
+        Queryset: modified initial queryset with only field named `sum_{aggregated_field}` that contains total usage
+            over given subscription
+    """
     query = initial_query.filter(**{query_id_field: OuterRef(outer_query_id_field)})
     query = query.values(query_id_field)
     query = query.annotate(**{'sum_' + aggregated_field: Coalesce(Sum(aggregated_field), 0)})
@@ -38,7 +50,20 @@ def get_exceeding_subscriptions(
         subscription_id_field: str,
         limit: float
 ) -> QuerySet:
-    # TODO: write docs
+    """This function takes initial queryset on subscription model (ATT or Spring) and annotates it with new field
+        (`subscription_type`) containing information of subscription type (based on given `subscription_type`) and
+        fields (`agg_data_usage_exceeds`, `agg_voice_usage_exceeds`) containing information on exceeding given `limit`
+        for all types of usage
+
+    Args:
+        initial_query (QuerySet): initial queryset on child model of wt.usage.base_models.UsageRecord
+        subscription_type (str): subscription id field name on initial_query
+        subscription_id_field (str): outer reference subscription id field name (e.g. att_subscription_id)
+        limit (float): field name on initial_query to aggregate sum
+
+    Returns:
+        Queryset: annotated initial queryset
+    """
     data_usage_subquery = get_usage_aggregated_query(
         DataUsageRecord.objects.all(),
         subscription_id_field,
@@ -67,7 +92,18 @@ def get_usage_metrics(
         from_date: datetime.datetime,
         to_date: datetime.datetime,
 ) -> QuerySet:
-    # TODO: write docs
+    """This function takes initial queryset on child model of wt.usage.base_models.UsageRecord and annotates it with:
+        *   subscription identifier (`id_field`, `id_value` annotated fields),
+        *   total usage and price (`agg_usage`, `agg_price`) within given period (`from_date`, `to_date`)
+
+    Args:
+        initial_query (QuerySet): initial queryset on child model of wt.usage.base_models.UsageRecord
+        from_date (datetime.datetime): start date of period
+        to_date (datetime.datetime): end date of period
+
+    Returns:
+        Queryset: annotated initial queryset
+    """
     initial_query = initial_query.filter(usage_date__gte=from_date, usage_date__lte=to_date)
 
     initial_subquery = initial_query.annotate(

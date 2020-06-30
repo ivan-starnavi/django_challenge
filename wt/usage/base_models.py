@@ -64,8 +64,18 @@ def populate(
         att_subscription_id: int = None,
         sprint_subscription_id: int = None
 ) -> T:
+    """This function takes child model of AggregatedUsageRecord and some date (not datetime) and populate s
+
+    Args:
+        model (Type[T]): initial queryset on child model of wt.usage.base_models.UsageRecord
+        date (datetime.datetime): start date of period
+        att_subscription_id (int): end date of period
+        sprint_subscription_id (int): ...
+
+    Returns:
+        Queryset: annotated initial queryset
+    """
     # TODO: replace with validator on model
-    # TODO: write docs
     assert bool(att_subscription_id) ^ bool(sprint_subscription_id), 'You should pass only one of the ids'
 
     obj, _ = model.objects.get_or_create(
