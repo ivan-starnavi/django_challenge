@@ -1,12 +1,17 @@
 import datetime
 
-from typing import Optional, Dict, TypeVar, Type
+from typing import Type
 
 from django.db import models, transaction
+from django.db.models import Subquery, F, Exists
 from django.db.models.functions import Coalesce
 
 from wt.att_subscriptions.models import ATTSubscription
 from wt.sprint_subscriptions.models import SprintSubscription
+from wt.usage.managers import UsageQuerySet
+from wt.usage.utils import chunks
+
+POPULATE_BULK_CREATE_CHUNK_SIZE = 100
 
 
 class UsageRecord(models.Model):
@@ -16,10 +21,26 @@ class UsageRecord(models.Model):
     price = models.DecimalField(decimal_places=2, max_digits=5, default=0)
     usage_date = models.DateTimeField(null=True)
 
-    USAGE_FIELD = None
+    USAGE_FIELD: str = None
+
+    objects = UsageQuerySet.as_manager()
 
     class Meta:
         abstract = True
+
+    @classmethod
+    def annotate_usage_by_subscription(cls, query: UsageQuerySet) -> UsageQuerySet:
+        """Annotates queryset over UsageRecord child model with total usage and price by subscription. Returns annotated
+            queryset with only fields: `id_field`, `id_value`, `att_subscription_id`, `sprint_subscription_id`"""
+        # annotate with id fields
+        query = query.annotate_id().filter_outer_id()
+        # count usage by subscription
+        query = query.values('id_field', 'id_value', 'att_subscription_id', 'sprint_subscription_id')
+        query = query.annotate(
+            agg_usage=Coalesce(models.Sum(cls.USAGE_FIELD), 0, output_field=models.IntegerField()),
+            agg_price=Coalesce(models.Sum('price'), 0, output_field=models.IntegerField())
+        )
+        return query
 
 
 class AggregatedUsageRecord(models.Model):
@@ -29,78 +50,63 @@ class AggregatedUsageRecord(models.Model):
     price = models.DecimalField(decimal_places=2, max_digits=10, default=0)
     usage_date = models.DateField()
 
-    BASE_MODEL: UsageRecord = None
+    BASE_MODEL: Type[UsageRecord] = None
+
+    objects = UsageQuerySet.as_manager()
 
     class Meta:
         abstract = True
 
+    @classmethod
+    def get_not_existing_aggregate_records(cls, date: datetime.date) -> UsageQuerySet:
+        """Returns queryset (on BASE_MODEL) containing fields `att_subscription_id` and `sprint_subscription_id` that
+            represent subscriptions without aggregated record for given date"""
+        query = cls.BASE_MODEL.objects.filter(usage_date__date=date)
+        query = query.values('att_subscription_id', 'sprint_subscription_id').distinct()
+        query = query.annotate_id()
 
-def construct_search(
-        att_subscription_id: Optional[int] = None,
-        sprint_subscription_id: Optional[int] = None
-) -> Dict[str, int or bool]:
-    result = {}
+        subquery = cls.objects.annotate_id().filter_outer_id()
+        subquery = subquery.filter(usage_date=date)
 
-    if att_subscription_id is None:
-        result['att_subscription_id__isnull'] = True
-    else:
-        result['att_subscription_id'] = att_subscription_id
+        query = query.annotate(agg_record_exists=Exists(subquery))
+        query = query.filter(agg_record_exists=False)
 
-    if sprint_subscription_id is None:
-        result['sprint_subscription_id__isnull'] = True
-    else:
-        result['sprint_subscription_id'] = sprint_subscription_id
+        return query
 
-    return result
+    @classmethod
+    @transaction.atomic()
+    def populate(cls, date: datetime.date) -> None:
+        """Populates aggregated usage model with raw records on given date and then deletes counted raw records"""
+        # 1. create not existing aggregated records for given date for those subscription that have usage in given date
+        agg_records_to_create = cls.get_not_existing_aggregate_records(date)
+        for dicts in chunks(agg_records_to_create, POPULATE_BULK_CREATE_CHUNK_SIZE):
+            objects = [
+                cls(
+                    pk=None,
+                    att_subscription_id=d['att_subscription_id'],
+                    sprint_subscription_id=d['sprint_subscription_id'],
+                    usage_date=date
+                )
+                for d in dicts]
+            cls.objects.bulk_create(objects)
 
+        # 2. update aggregated records
+        subquery = cls.BASE_MODEL.objects.filter(usage_date__date=date)
+        subquery = cls.BASE_MODEL.annotate_usage_by_subscription(subquery)
 
-T = TypeVar('T', bound='AggregatedUsageRecord')
+        query = cls.objects.filter(usage_date=date).annotate_id()
+        query = query.annotate(
+            agg_usage=Subquery(subquery.values('agg_usage'), output_field=models.IntegerField()),
+            agg_price=Subquery(subquery.values('agg_price'), output_field=models.DecimalField())
+        )
+        # counting only subscriptions with non-zero usage
+        query = query.filter(agg_usage__gt=0)
 
+        # update
+        query.update(**{
+            cls.BASE_MODEL.USAGE_FIELD: F(cls.BASE_MODEL.USAGE_FIELD) + F('agg_usage'),
+            'price': F('price') + F('agg_price')
+        })
 
-@transaction.atomic()
-def populate(
-        model: Type[T],
-        date: datetime.date,
-        att_subscription_id: int = None,
-        sprint_subscription_id: int = None
-) -> T:
-    """This function takes child model of AggregatedUsageRecord and some date (not datetime) and populate s
-
-    Args:
-        model (Type[T]): initial queryset on child model of wt.usage.base_models.UsageRecord
-        date (datetime.datetime): start date of period
-        att_subscription_id (int): end date of period
-        sprint_subscription_id (int): ...
-
-    Returns:
-        Queryset: annotated initial queryset
-    """
-    # TODO: replace with validator on model
-    assert bool(att_subscription_id) ^ bool(sprint_subscription_id), 'You should pass only one of the ids'
-
-    obj, _ = model.objects.get_or_create(
-        att_subscription_id=att_subscription_id,
-        sprint_subscription_id=sprint_subscription_id,
-        defaults={
-            'usage_date': date,
-            'att_subscription_id': att_subscription_id,
-            'sprint_subscription_id': sprint_subscription_id
-        }
-    )
-
-    query = model.BASE_MODEL.objects.filter(
-        usage_date__contains=date,
-        **construct_search(att_subscription_id, sprint_subscription_id)
-    )
-    aggregation = query.aggregate(
-        agg_usage=Coalesce(models.Sum(model.BASE_MODEL.USAGE_FIELD), 0, output_field=models.IntegerField()),
-        agg_price=Coalesce(models.Sum('price'), 0, output_field=models.IntegerField())
-    )
-
-    setattr(obj, model.BASE_MODEL.USAGE_FIELD, getattr(obj, model.BASE_MODEL.USAGE_FIELD) + aggregation['agg_usage'])
-    obj.price += aggregation['agg_price']
-    obj.save()
-
-    query.delete()
-
-    return obj
+        # 3. delete raw usage records that have been counted above
+        cls.BASE_MODEL.objects.filter(usage_date__date=date).delete()
