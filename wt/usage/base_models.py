@@ -3,8 +3,6 @@ import datetime
 from typing import Type
 
 from django.db import models, transaction
-from django.db.models import Subquery, F, Exists
-from django.db.models.functions import Coalesce
 
 from wt.att_subscriptions.models import ATTSubscription
 from wt.sprint_subscriptions.models import SprintSubscription
@@ -29,18 +27,12 @@ class UsageRecord(models.Model):
         abstract = True
 
     @classmethod
-    def annotate_usage_by_subscription(cls, query: UsageQuerySet) -> UsageQuerySet:
-        """Annotates queryset over UsageRecord child model with total usage and price by subscription. Returns annotated
-            queryset with only fields: `id_field`, `id_value`, `att_subscription_id`, `sprint_subscription_id`"""
-        # annotate with id fields
-        query = query.annotate_id().filter_outer_id()
-        # count usage by subscription
-        query = query.values('id_field', 'id_value', 'att_subscription_id', 'sprint_subscription_id')
-        query = query.annotate(
-            agg_usage=Coalesce(models.Sum(cls.USAGE_FIELD), 0, output_field=models.IntegerField()),
-            agg_price=Coalesce(models.Sum('price'), 0, output_field=models.IntegerField())
-        )
-        return query
+    def get_related_field_name_by_model(cls, model: Type[models.Model]):
+        """Returns related to given model field's column name"""
+        for field in cls._meta.fields:
+            if field.is_relation and field.related_model == model:
+                return field.column
+        raise RuntimeError(f'No related field for model {cls.__name__} on model {model.__name__}')
 
 
 class AggregatedUsageRecord(models.Model):
@@ -68,7 +60,7 @@ class AggregatedUsageRecord(models.Model):
         subquery = cls.objects.annotate_id().filter_outer_id()
         subquery = subquery.filter(usage_date=date)
 
-        query = query.annotate(agg_record_exists=Exists(subquery))
+        query = query.annotate(agg_record_exists=models.Exists(subquery))
         query = query.filter(agg_record_exists=False)
 
         return query
@@ -92,20 +84,20 @@ class AggregatedUsageRecord(models.Model):
 
         # 2. update aggregated records
         subquery = cls.BASE_MODEL.objects.filter(usage_date__date=date)
-        subquery = cls.BASE_MODEL.annotate_usage_by_subscription(subquery)
+        subquery = subquery.subquery_aggregate()
 
         query = cls.objects.filter(usage_date=date).annotate_id()
         query = query.annotate(
-            agg_usage=Subquery(subquery.values('agg_usage'), output_field=models.IntegerField()),
-            agg_price=Subquery(subquery.values('agg_price'), output_field=models.DecimalField())
+            agg_usage=models.Subquery(subquery.values('agg_usage'), output_field=models.IntegerField()),
+            agg_price=models.Subquery(subquery.values('agg_price'), output_field=models.DecimalField())
         )
         # counting only subscriptions with non-zero usage
         query = query.filter(agg_usage__gt=0)
 
         # update
         query.update(**{
-            cls.BASE_MODEL.USAGE_FIELD: F(cls.BASE_MODEL.USAGE_FIELD) + F('agg_usage'),
-            'price': F('price') + F('agg_price')
+            cls.BASE_MODEL.USAGE_FIELD: models.F(cls.BASE_MODEL.USAGE_FIELD) + models.F('agg_usage'),
+            'price': models.F('price') + models.F('agg_price')
         })
 
         # 3. delete raw usage records that have been counted above

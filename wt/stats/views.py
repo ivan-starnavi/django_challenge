@@ -16,20 +16,11 @@ class StatsExceedingView(APIView):
         query_serializer.is_valid(True)
         limit = query_serializer.validated_data['limit']
 
-        att_exceeded_subscriptions = get_exceeding_subscriptions(
-            ATTSubscription.objects.all(),
-            'ATT',
-            'att_subscription_id',
-            limit
-        )
-        sprint_exceeded_subscriptions = get_exceeding_subscriptions(
-            SprintSubscription.objects.all(),
-            'Sprint',
-            'sprint_subscription_id',
-            limit
-        )
-
+        att_exceeded_subscriptions = get_exceeding_subscriptions(ATTSubscription.objects.all(), limit)
+        sprint_exceeded_subscriptions = get_exceeding_subscriptions(SprintSubscription.objects.all(), limit)
+        # union querysets with att and sprint subscriptions
         query = att_exceeded_subscriptions.union(sprint_exceeded_subscriptions)
+
         data = StatsExceedingResponseSerializer(query, many=True).data
         return Response(data)
 
@@ -40,11 +31,9 @@ class StatsUsageMetricsView(APIView):
         request_serializer.is_valid(True)
         request_params = request_serializer.validated_data
 
-        if request_params['usage_type'] == 'data':
-            initial_query = DataUsageRecord.objects.all()
-        else:
-            initial_query = VoiceUsageRecord.objects.all()
+        model = DataUsageRecord if request_params['usage_type'] == 'data' else VoiceUsageRecord
 
-        query = get_usage_metrics(initial_query, request_params['from_date'], request_params['to_date'])
+        query = get_usage_metrics(model.objects.all(), request_params['from_date'], request_params['to_date'])
+
         data = StatusUsageMetricsResponseSerializer(query, many=True).data
         return Response(data)
