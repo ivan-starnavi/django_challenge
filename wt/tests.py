@@ -1,3 +1,5 @@
+from typing import Type
+
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
@@ -6,6 +8,8 @@ from rest_framework.test import APITestCase
 from wt.att_subscriptions.models import ATTSubscription
 from wt.plans.models import Plan
 from wt.sprint_subscriptions.models import SprintSubscription
+from wt.usage.base_models import UsageRecord
+from wt.usage.models import DataUsageRecord, VoiceUsageRecord
 
 
 class BaseAPITestCase(APITestCase):
@@ -27,3 +31,29 @@ class BaseAPITestCase(APITestCase):
             user=self.user, plan=self.plan, status='new', device_id='test', phone_number='test', phone_model='test',
             sprint_id='test', effective_date=timezone.now(), deleted=False
         )
+
+    @staticmethod
+    def _create_usage(model: Type[UsageRecord], subscription: UsageRecord, price, usage, usage_date):
+        usage_date = usage_date if usage_date is not None else timezone.now()
+
+        if isinstance(subscription, ATTSubscription):
+            field_name = 'att_subscription'
+        elif isinstance(subscription, SprintSubscription):
+            field_name = 'sprint_subscription'
+        else:
+            raise RuntimeError('Unknown subscription object: it should be ATTSubscription or SprintSubscription')
+
+        return model.objects.create(
+            **{
+                field_name: subscription,
+                model.USAGE_FIELD: usage
+            },
+            price=price,
+            usage_date=usage_date
+        )
+
+    def create_data_usage(self, subscription, price, kilobytes, usage_date=None):
+        return self._create_usage(DataUsageRecord, subscription, price, kilobytes, usage_date)
+
+    def create_voice_usage(self, subscription, price, seconds, usage_date=None):
+        return self._create_usage(VoiceUsageRecord, subscription, price, seconds, usage_date)

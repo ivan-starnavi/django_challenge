@@ -43,7 +43,7 @@ class StatusUsageMetricsResponseSerializer(Serializer):
     price = CustomDecimalField(only_positive_values=False, source='agg_price')
 
     def get_subscription_type(self, obj):
-        subscription_type = obj.id_field
+        subscription_type = obj['id_field']
         if subscription_type == 'att_subscription_id':
             return 'ATT'
         elif subscription_type == 'sprint_subscription_id':

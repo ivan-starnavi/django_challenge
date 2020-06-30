@@ -42,8 +42,8 @@ class UsageQuerySet(models.QuerySet):
             raise RuntimeError('No `USAGE_FIELD` field for model of query')
 
         # annotate with id fields
-        query = self.annotate_id().filter_outer_id()
-        query = query.values('id_field', 'id_value', 'att_subscription_id', 'sprint_subscription_id')
+        query = self.values('att_subscription_id', 'sprint_subscription_id').distinct()
+        query = query.annotate_id().filter_outer_id()
 
         if need_usage:
             query = query.annotate(

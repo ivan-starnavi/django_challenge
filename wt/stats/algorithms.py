@@ -57,10 +57,13 @@ def get_usage_metrics(
     query = initial_query
     query = query.filter(usage_date__gte=from_date, usage_date__lte=to_date)
 
-    subquery_price = initial_query.subquery_aggregate(need_usage=False).values('agg_price')
-    subquery_usage = initial_query.subquery_aggregate(need_price=False).values('agg_usage')
+    subquery_price = query.subquery_aggregate(need_usage=False).values('agg_price')
+    subquery_usage = query.subquery_aggregate(need_price=False).values('agg_usage')
 
-    query = query.annotate_id().annotate(
+    query = query.annotate_id()
+    query = query.values('id_field', 'id_value')
+    query = query.distinct()
+    query = query.annotate(
         agg_price=models.Subquery(subquery_price, output_field=models.DecimalField()),
         agg_usage=models.Subquery(subquery_usage, output_field=models.IntegerField()),
     )
