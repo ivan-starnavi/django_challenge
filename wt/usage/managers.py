@@ -31,7 +31,8 @@ class UsageQuerySet(models.QuerySet):
     def subquery_aggregate(self, need_usage=True, need_price=True):
         """Annotates queryset over UsageRecord child model with total usage and price by subscription. Returns annotated
             and filtered with outerref queryset with only fields: `id_field`, `id_value`, `att_subscription_id`,
-            `sprint_subscription_id` and optional fields `agg_usage`, `agg_price`
+            `sprint_subscription_id` and optional fields `agg_usage`, `agg_price`. Entries in returned queryset are
+            unique by subscription.
 
             Args:
                 need_usage (bool, Optional): need aggregated total usage in returned queryset (`agg_usage`)
@@ -41,7 +42,6 @@ class UsageQuerySet(models.QuerySet):
         if not hasattr(self.model, 'USAGE_FIELD'):
             raise RuntimeError('No `USAGE_FIELD` field for model of query')
 
-        # annotate with id fields
         query = self.values('att_subscription_id', 'sprint_subscription_id').distinct()
         query = query.annotate_id().filter_outer_id()
 

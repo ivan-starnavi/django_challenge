@@ -20,11 +20,13 @@ def get_exceeding_subscriptions(initial_query: models.QuerySet, limit: float) ->
         Queryset: annotated initial queryset
     """
     query = initial_query
+    # annotate subscription queryset with common for this project interface `id_value` and `id_field`
     query = query.annotate(
         id_value=models.F('id'),
         id_field=models.Value(UsageRecord.get_related_field_name_by_model(query.model), output_field=models.CharField())
     )
 
+    # get aggregated price for every subscription
     subquery_data = DataUsageRecord.objects.subquery_aggregate(need_usage=False).values('agg_price')
     subquery_voice = VoiceUsageRecord.objects.subquery_aggregate(need_usage=False).values('agg_price')
 
@@ -33,6 +35,7 @@ def get_exceeding_subscriptions(initial_query: models.QuerySet, limit: float) ->
         agg_voice_usage_exceeds=models.Subquery(subquery_voice, output_field=models.DecimalField()) - limit,
         subscription_type=models.Value(query.model.__name__, models.CharField())
     )
+    # return only those entries, that exceed limit by data or voice usage
     query = query.filter(models.Q(agg_data_usage_exceeds__gt=0) | models.Q(agg_voice_usage_exceeds__gt=0))
     return query
 
@@ -55,14 +58,17 @@ def get_usage_metrics(
         Queryset: annotated initial queryset
     """
     query = initial_query
+    # filter everything (main query and subqueries) within given period
     query = query.filter(usage_date__gte=from_date, usage_date__lte=to_date)
 
     subquery_price = query.subquery_aggregate(need_usage=False).values('agg_price')
     subquery_usage = query.subquery_aggregate(need_price=False).values('agg_usage')
 
+    # get unique subscriptions
     query = query.annotate_id()
     query = query.values('id_field', 'id_value')
     query = query.distinct()
+    # for every of them count sum price and usage
     query = query.annotate(
         agg_price=models.Subquery(subquery_price, output_field=models.DecimalField()),
         agg_usage=models.Subquery(subquery_usage, output_field=models.IntegerField()),

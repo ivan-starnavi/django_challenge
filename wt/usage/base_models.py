@@ -69,7 +69,7 @@ class AggregatedUsageRecord(models.Model):
     @transaction.atomic()
     def populate(cls, date: datetime.date) -> None:
         """Populates aggregated usage model with raw records on given date and then deletes counted raw records"""
-        # 1. create not existing aggregated records for given date for those subscription that have usage in given date
+        # 1. create not existing aggregated records for given date for those subscription that have usage at given date
         agg_records_to_create = cls.get_not_existing_aggregate_records(date)
         for dicts in chunks(agg_records_to_create, POPULATE_BULK_CREATE_CHUNK_SIZE):
             objects = [
@@ -79,7 +79,8 @@ class AggregatedUsageRecord(models.Model):
                     sprint_subscription_id=d['sprint_subscription_id'],
                     usage_date=date
                 )
-                for d in dicts]
+                for d in dicts
+            ]
             cls.objects.bulk_create(objects)
 
         # 2. update aggregated records
