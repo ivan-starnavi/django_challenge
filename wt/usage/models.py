@@ -12,12 +12,18 @@ class DataUsageRecord(UsageRecord):
 
     USAGE_FIELD = 'kilobytes_used'
 
+    class Meta:
+        db_table = 'usages_data'
+
 
 class VoiceUsageRecord(UsageRecord):
     """Raw voice usage record for a subscription"""
     seconds_used = models.IntegerField(null=False)
 
     USAGE_FIELD = 'seconds_used'
+
+    class Meta:
+        db_table = 'usages_voice'
 
 
 class AggregatedDataUsageRecord(AggregatedUsageRecord):
@@ -27,7 +33,7 @@ class AggregatedDataUsageRecord(AggregatedUsageRecord):
     BASE_MODEL = DataUsageRecord
 
     class Meta:
-        db_table = 'agg_data_usage'
+        db_table = 'usages_agg_data'
 
 
 class AggregatedVoiceUsageRecord(AggregatedUsageRecord):
@@ -37,4 +43,4 @@ class AggregatedVoiceUsageRecord(AggregatedUsageRecord):
     BASE_MODEL = VoiceUsageRecord
 
     class Meta:
-        db_table = 'agg_voice_usage'
+        db_table = 'usages_agg_voice'

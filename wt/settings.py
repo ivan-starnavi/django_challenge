@@ -37,11 +37,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+
+    'wt.subscriptions.apps.SubscriptionsConfig',
     'wt.att_subscriptions.apps.AttSubscriptionsConfig',
     'wt.plans.apps.PlansConfig',
     'wt.purchases.apps.PurchasesConfig',
     'wt.sprint_subscriptions.apps.SprintSubscriptionsConfig',
-    'wt.usage.apps.UsageConfig'
+    'wt.usage.apps.UsageConfig',
+    'wt.stats.apps.StatsConfig',
 ]
 
 MIDDLEWARE = [
