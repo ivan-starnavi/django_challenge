@@ -142,10 +142,10 @@ class UsageMetricsTestCase(BaseStatsTestCase):
         ]
 
         test = [
-            ('data', self.today, today_data_correct),
-            ('data', self.tomorrow, tomorrow_data_correct),
-            ('voice', self.today, today_voice_correct),
-            ('voice', self.tomorrow, tomorrow_voice_correct)
+            ('data', self.today_date, today_data_correct),
+            ('data', self.tomorrow_date, tomorrow_data_correct),
+            ('voice', self.today_date, today_voice_correct),
+            ('voice', self.tomorrow_date, tomorrow_voice_correct)
         ]
         for usage_type, date, correct in test:
             response = self.send(usage_type, date, date)
@@ -155,7 +155,7 @@ class UsageMetricsTestCase(BaseStatsTestCase):
         # add one more
         sub = self.create_sprint()
         self.create_data_usage(sub, '100.01', 1, self.tomorrow)
-        response = self.send('data', self.tomorrow, self.tomorrow)
+        response = self.send('data', self.tomorrow_date, self.tomorrow_date)
         tomorrow_data_correct.append(
             {
                 'subscription_type': 'Sprint',
@@ -167,7 +167,7 @@ class UsageMetricsTestCase(BaseStatsTestCase):
         self.check_response(tomorrow_data_correct, response.json())
 
         # send dates that don't form an interval
-        response = self.send('data', self.tomorrow, self.today)
+        response = self.send('data', self.tomorrow_date, self.today_date)
         self.check_response([], response.json())
 
     def test_incorrect(self):
@@ -177,8 +177,7 @@ class UsageMetricsTestCase(BaseStatsTestCase):
 
         response = self.client.post(self.url, data={'usage_type': 'test', 'from_date': 'test', 'to_date': 'test'})
         self.assertEqual(response.status_code, 400)
-        datetime_error = 'Datetime has wrong format. Use one of these formats instead: ' \
-                         'YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z].'
+        datetime_error = 'Date has wrong format. Use one of these formats instead: YYYY[-MM[-DD]].'
         self.assertEqual(
             response.json(),
             {
@@ -199,14 +198,14 @@ class UsageMetricsTestCase(BaseStatsTestCase):
                     self.create_data_usage(sub, '1.01', 1, self.today if idx % 2 else self.tomorrow)
                     self.create_voice_usage(sub, '1.01', 1, self.tomorrow if idx % 2 else self.today)
 
-        response = self.send('data', self.today, self.today).json()
+        response = self.send('data', self.today_date, self.today_date).json()
         self.assertEqual(len(response), subs_count * 2)  # 2 = att + sprint
         for obj in response:
             self.assertEqual(obj['usage'], usages_count // 2, obj)
             self.assertAlmostEqual(float(obj['price']), 1.01 * usages_count / 2, 2)
 
         # test from today to tomorrow
-        response = self.send('voice', self.today, self.tomorrow).json()
+        response = self.send('voice', self.today_date, self.tomorrow_date).json()
         self.assertEqual(len(response), subs_count * 2)  # 2 = att + sprint
         for obj in response:
             self.assertEqual(obj['usage'], usages_count, obj)

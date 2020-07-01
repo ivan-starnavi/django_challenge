@@ -1,5 +1,5 @@
-from rest_framework.serializers import Serializer, DecimalField, IntegerField, DateTimeField, ChoiceField, CharField, \
-    SerializerMethodField
+from rest_framework.serializers import Serializer, DecimalField, IntegerField, ChoiceField, CharField, \
+    SerializerMethodField, DateField
 
 
 class CustomDecimalField(DecimalField):
@@ -31,8 +31,8 @@ class StatsExceedingResponseSerializer(Serializer):
 
 
 class StatsUsageMetricsRequestSerializer(Serializer):
-    from_date = DateTimeField(required=True)
-    to_date = DateTimeField(required=True)
+    from_date = DateField(required=True)
+    to_date = DateField(required=True)
     usage_type = ChoiceField(choices=['data', 'voice'], required=True)
 
 

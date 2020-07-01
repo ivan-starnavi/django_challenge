@@ -22,7 +22,9 @@ class BaseAPITestCase(APITestCase):
         cls.plan = Plan.objects.create(name='test', price='1.00', data_available=100)
 
         cls.today = timezone.now()
+        cls.today_date = cls.today.date()
         cls.tomorrow = cls.today + timedelta(days=1)
+        cls.tomorrow_date = cls.tomorrow.date()
 
     def create_att(self):
         return ATTSubscription.objects.create(

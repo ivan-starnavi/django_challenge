@@ -59,7 +59,7 @@ def get_usage_metrics(
     """
     query = initial_query
     # filter everything (main query and subqueries) within given period
-    query = query.filter(usage_date__gte=from_date, usage_date__lte=to_date)
+    query = query.filter(usage_date__date__gte=from_date, usage_date__date__lte=to_date)
 
     subquery_price = query.subquery_aggregate(need_usage=False).values('agg_price')
     subquery_usage = query.subquery_aggregate(need_price=False).values('agg_usage')
